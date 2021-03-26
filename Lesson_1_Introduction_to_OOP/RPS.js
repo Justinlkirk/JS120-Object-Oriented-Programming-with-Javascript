@@ -109,7 +109,7 @@ let round = {
     console.log(`The final score was ${winner.wins} to ${loser.wins}`);
   },// Prints the results of the match
 
-  endMatchQuestions(player1, player2) {
+  endMatchQuestions(player1, player2, gameObject) {
     const KEEP_PLAYING_OPTION = 1,
       CHANGE_RULES_OPTION = 2,
       EXIT_OPTION = 3;
@@ -125,11 +125,11 @@ let round = {
         return;
       } else if (userInput === CHANGE_RULES_OPTION) {
         round.resetScore(player1, player2);// Resets things if you play again
-        RPSGame.updateRules();// Resets the rules
+        gameObject.updateRules();// Resets the rules
         round.resetScore(player1, player2);// Resets things if you play again
         return;
       } else if (userInput === EXIT_OPTION) {
-        RPSGame.keepPlaying = false;
+        gameObject.keepPlaying = false;
         return;
       } else invalidInput(userInput);
     } while (true);
@@ -165,34 +165,37 @@ let RPSGame = {
   user: createPlayer(),
   opponent: '',
   keepPlaying: true,
-  
+
   play() {
+    RPSGame.welcome();
     RPSGame.user.chooseName();
     RPSGame.updateRules();
-    
+
     do {
       RPSGame.playerTurn(RPSGame.user, RPSGame.opponent);
       RPSGame.playerTurn(RPSGame.opponent, RPSGame.user);
       console.clear();
       round.determineWinner(RPSGame.user, RPSGame.opponent);
       RPSGame.determineOutcome(RPSGame.user, RPSGame.opponent);
-    } while(RPSGame.keepPlaying);
+    } while (RPSGame.keepPlaying);
   },
-  
+
   determineOutcome(player1, player2) {
     if (player1.wins === rules.totalWinsPerMatch ||
       player2.wins === rules.totalWinsPerMatch) {
-      let winner = (player1.wins === rules.totalWinsPerMatch) ? player1 : player2;
-      let loser = (player1.wins !== rules.totalWinsPerMatch) ? player1 : player2;
+      let winner = (player1.wins ===
+        rules.totalWinsPerMatch) ? player1 : player2;
+      let loser = (player1.wins !==
+        rules.totalWinsPerMatch) ? player1 : player2;
       round.endMatchResults(winner, loser);
-      round.endMatchQuestions(player1, player2);
+      round.endMatchQuestions(player1, player2, RPSGame);
     } else {
       round.endRound(player1, player2);
       round.endRoundResult(player1, player2);
       readline.question('Enter any key to continue.');
     }
   },
-  
+
   playerTurn(currentPlayer, otherPlayer) {
     console.clear();
     currentPlayer.chooseMove(currentPlayer, otherPlayer);
@@ -200,7 +203,7 @@ let RPSGame = {
     console.log(currentPlayer.name + ' has chosen');
     readline.question('Enter any key to continue.');
   },
-  
+
   setOpponent() {
     RPSGame.opponent = rules.determineOpponent();
     if (RPSGame.opponent.name === IMPOSSIBLE_USER_NAME_INPUT) {
@@ -208,22 +211,22 @@ let RPSGame = {
       RPSGame.opponent.name = RPSGame.opponent.randomName();
     } else RPSGame.opponent.chooseName();
   },// Determines what you play against and several things about them
-  
+
   updateRules() {
     RPSGame.setOpponent();
     rules.determineHowManyWinsPerMatch();
   },// Updates your opponent and how many rounds per match
-}
+
+  welcome() {
+    console.log('Welcome to the of Rock, Paper, Scissors, Lizard, Spock trainer!');
+  }
+};
 //Global objects end
 
 //Functions begin
 function invalidInput(invalidString) {
   console.log(`Sorry ${invalidString} was not recognized. Please try again.`);
 }// Prints a canned statement for invalid inputs
-
-function welcome() {
-  console.log('Welcome to the of Rock, Paper, Scissors, Lizard, Spock trainer!');
-}// Logs the welcome message to the console
 
 function appendOr(array, appendingWord = 'or') {
   return array.slice(0, -1).join(', ') + `, ${appendingWord} ` + array.slice(-1);
@@ -315,8 +318,7 @@ function createPlayer() {
         if (AI_NAMES.includes(userInput)) console.log('Sorry that name is taken by a potential AI.');
         else if (!userInput.split('').some(char => 'abcdefghijklmnopqrstuvwxyz'.includes(char))) {
           console.log('Sorry there must be at least one letter in your name.');
-        }//Ensures there is atleast one letter in the name and its not already and AI name
-        else {
+        } else {
           this.name = userInput;
           return;
         }
@@ -345,18 +347,14 @@ function createPlayer() {
     },// Logs the round history to the console
 
     chooseMove(player1, player2) {
-      const MOVE_INDEX = 0,
-        VALID_INPUTS_INDEX = 1;
-        
       do {
         let userInput = this.playerMoveQuestion();
-        
+
         for (let key in rules.VALID_MOVE_INPUTS) {
           if (rules.VALID_MOVE_INPUTS['history'].includes(userInput)) {
             this.displayHistory(player1, player2);
             break;
-          }
-          else if (rules.VALID_MOVE_INPUTS[key].includes(userInput)) {
+          } else if (rules.VALID_MOVE_INPUTS[key].includes(userInput)) {
             this.move = key;
             return;
           }
