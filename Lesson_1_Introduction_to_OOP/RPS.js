@@ -11,16 +11,18 @@ let rules = {
   difficulty: 'normal',
 
   VALID_MOVES: Object.freeze(['rock', 'paper', 'scissors', 'lizard', 'spock']),
-  VALID_HISTORY_INPUTS: Object.freeze(['history', 'h']),
-  VALID_ROCK_INPUTS: Object.freeze(['rock', 'r']),
-  VALID_PAPER_INPUTS: Object.freeze(['paper', 'p']),
-  VALID_SCISSORS_INPUTS: Object.freeze(['scissors', 'sc']),
-  VALID_LIZARD_INPUTS: Object.freeze(['lizard', 'l']),
-  VALID_SPOCK_INPUTS: Object.freeze(['spock', 'sp']),
   VALID_COMPUTER_OPPONENT_INPUTS: Object.freeze(['ai', 'computer', 'comp', 'c']),
   VALID_PLAYER_OPPONENT_INPUTS: Object.freeze(['player', 'person', 'p']),
   VALID_NORMAL_DIFFICULTY_INPUTS: Object.freeze(['normal', 'n']),
   VALID_HARD_DIFFICULTY_INPUTS: Object.freeze(['hard', 'h']),
+  VALID_MOVE_INPUTS: Object.freeze({
+    history: Object.freeze(['history', 'h']),
+    rock: Object.freeze(['rock', 'r']),
+    paper: Object.freeze(['paper', 'p']),
+    scissors: Object.freeze(['scissors', 'sc']),
+    lizard: Object.freeze(['lizard', 'l']),
+    spock: Object.freeze(['spock', 'sp']),
+  }),
 
 
   winConditions: {
@@ -77,8 +79,6 @@ let rules = {
 let round = {
   roundNumber: 1,
   winner: '',
-  keepPlaying: true,
-  changeRules: true,
 
   endRound(player1, player2) {
     const ROUND_INCREMENT = 1;
@@ -122,16 +122,14 @@ let round = {
 
       if (userInput === KEEP_PLAYING_OPTION) {
         round.resetScore(player1, player2);// Resets things if you play again
-        round.keepPlaying = true;
         return;
       } else if (userInput === CHANGE_RULES_OPTION) {
         round.resetScore(player1, player2);// Resets things if you play again
-        round.keepPlaying = false;
-        round.changeRules = true;
+        RPSGame.updateRules();// Resets the rules
+        round.resetScore(player1, player2);// Resets things if you play again
         return;
       } else if (userInput === EXIT_OPTION) {
-        round.keepPlaying = false;
-        round.changeRules = false;
+        RPSGame.keepPlaying = false;
         return;
       } else invalidInput(userInput);
     } while (true);
@@ -162,52 +160,61 @@ let round = {
     console.log(`${player1.name} has ${player1.wins} total wins and ${player2.name} has ${player2.wins}.`);
   }// Prints the round results to console
 };// Stores all the relevant round variables and functions
-//Global objects end
 
-//Code body begin
-welcome();
-let user = createPlayer();
-user.chooseName();
-
-do {
-  round.keepPlaying = true;// Resets round.keepPlaying after changing the rules
-
-  let opponent = rules.determineOpponent();
-  if (opponent.name === IMPOSSIBLE_USER_NAME_INPUT) {
-    rules.determineDifficulty();
-    opponent.name = opponent.randomName();
-  } else opponent.chooseName();
-
-  rules.determineHowManyWinsPerMatch();
-  do {
-    console.clear();
-    user.chooseMove(user, opponent);
-    console.clear();
-    console.log(user.name + ' has chosen');
-    readline.question('Enter any key to continue.');
-
-    console.clear();
-    opponent.chooseMove(user, opponent);
-    console.clear();
-    console.log(opponent.name + ' has chosen');
-    readline.question('Enter any key to continue.');
-    console.clear();
-
-    round.determineWinner(user, opponent);
-    if (user.wins === rules.totalWinsPerMatch ||
-        opponent.wins === rules.totalWinsPerMatch) {
-      let winner = (user.wins === rules.totalWinsPerMatch) ? user : opponent;
-      let loser = (user.wins !== rules.totalWinsPerMatch) ? user : opponent;
+let RPSGame = {
+  user: createPlayer(),
+  opponent: '',
+  keepPlaying: true,
+  
+  play() {
+    RPSGame.user.chooseName();
+    RPSGame.updateRules();
+    
+    do {
+      RPSGame.playerTurn(RPSGame.user, RPSGame.opponent);
+      RPSGame.playerTurn(RPSGame.opponent, RPSGame.user);
+      console.clear();
+      round.determineWinner(RPSGame.user, RPSGame.opponent);
+      RPSGame.determineOutcome(RPSGame.user, RPSGame.opponent);
+    } while(RPSGame.keepPlaying);
+  },
+  
+  determineOutcome(player1, player2) {
+    if (player1.wins === rules.totalWinsPerMatch ||
+      player2.wins === rules.totalWinsPerMatch) {
+      let winner = (player1.wins === rules.totalWinsPerMatch) ? player1 : player2;
+      let loser = (player1.wins !== rules.totalWinsPerMatch) ? player1 : player2;
       round.endMatchResults(winner, loser);
-      round.endMatchQuestions(user, opponent);
+      round.endMatchQuestions(player1, player2);
     } else {
-      round.endRound(user, opponent);
-      round.endRoundResult(user, opponent);
+      round.endRound(player1, player2);
+      round.endRoundResult(player1, player2);
       readline.question('Enter any key to continue.');
     }
-  } while (round.keepPlaying);
-} while (round.changeRules);
-//Code body end
+  },
+  
+  playerTurn(currentPlayer, otherPlayer) {
+    console.clear();
+    currentPlayer.chooseMove(currentPlayer, otherPlayer);
+    console.clear();
+    console.log(currentPlayer.name + ' has chosen');
+    readline.question('Enter any key to continue.');
+  },
+  
+  setOpponent() {
+    RPSGame.opponent = rules.determineOpponent();
+    if (RPSGame.opponent.name === IMPOSSIBLE_USER_NAME_INPUT) {
+      rules.determineDifficulty();
+      RPSGame.opponent.name = RPSGame.opponent.randomName();
+    } else RPSGame.opponent.chooseName();
+  },// Determines what you play against and several things about them
+  
+  updateRules() {
+    RPSGame.setOpponent();
+    rules.determineHowManyWinsPerMatch();
+  },// Updates your opponent and how many rounds per match
+}
+//Global objects end
 
 //Functions begin
 function invalidInput(invalidString) {
@@ -256,7 +263,7 @@ function createComputer() {
       const VALUES_INDEX = 1,
         KEYS_INDEX = 0,
         WEIGHT_INCREASE_AFTER_LOSS = 1;
-      if (winner === user.name) {
+      if (winner === RPSGame.user.name) {
         Object.entries(rules.winConditions).forEach(entry => {
           if (entry[VALUES_INDEX].includes(playerMove)) {
             this.moveWeights[entry[KEYS_INDEX]] += WEIGHT_INCREASE_AFTER_LOSS;
@@ -306,6 +313,9 @@ function createPlayer() {
         let userInput = readline.question('Please enter your name: ');
 
         if (AI_NAMES.includes(userInput)) console.log('Sorry that name is taken by a potential AI.');
+        else if (!userInput.split('').some(char => 'abcdefghijklmnopqrstuvwxyz'.includes(char))) {
+          console.log('Sorry there must be at least one letter in your name.');
+        }//Ensures there is atleast one letter in the name and its not already and AI name
         else {
           this.name = userInput;
           return;
@@ -335,30 +345,23 @@ function createPlayer() {
     },// Logs the round history to the console
 
     chooseMove(player1, player2) {
-      let invalidUserInput;
-
+      const MOVE_INDEX = 0,
+        VALID_INPUTS_INDEX = 1;
+        
       do {
-        invalidUserInput = false;
         let userInput = this.playerMoveQuestion();
-
-        if (rules.VALID_HISTORY_INPUTS.includes(userInput)) {
-          this.displayHistory(player1, player2);
-          invalidUserInput = true;
-        } else if (rules.VALID_ROCK_INPUTS.includes(userInput)) {
-          this.move = 'rock';
-        } else if (rules.VALID_PAPER_INPUTS.includes(userInput)) {
-          this.move = 'paper';
-        } else if (rules.VALID_SCISSORS_INPUTS.includes(userInput)) {
-          this.move = 'scissors';
-        } else if (rules.VALID_LIZARD_INPUTS.includes(userInput)) {
-          this.move = 'lizard';
-        } else if (rules.VALID_SPOCK_INPUTS.includes(userInput)) {
-          this.move = 'spock';
-        } else {
-          invalidInput(userInput);
-          invalidUserInput = true;
+        
+        for (let key in rules.VALID_MOVE_INPUTS) {
+          if (rules.VALID_MOVE_INPUTS['history'].includes(userInput)) {
+            this.displayHistory(player1, player2);
+            break;
+          }
+          else if (rules.VALID_MOVE_INPUTS[key].includes(userInput)) {
+            this.move = key;
+            return;
+          }
         }
-      } while (invalidUserInput);
+      } while (true);
     },// Updates the players move, requires user to input a string from rules.validMoveInputs
 
     playerMoveQuestion() {
@@ -372,3 +375,7 @@ function createPlayer() {
   };
 }// Builds a player object and the functions it requires
 //Functions end
+
+//Code body begins
+RPSGame.play();
+//Code body ends
